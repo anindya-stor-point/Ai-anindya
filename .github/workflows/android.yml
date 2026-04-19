@@ -1,4 +1,4 @@
-# Android CI Build Workflow
+# Kivy Buildozer Android CI
 name: Android CI
 
 on:
@@ -9,19 +9,26 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        cache: gradle
+      - uses: actions/checkout@v4
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Build with Gradle
-      run: ./gradlew build
+      - name: Get Date
+        shell: bash
+        run: |
+          echo "date=$(date +'%Y-%m-%d--%H-%M')" >> $GITHUB_OUTPUT
+        id: get-date
+
+      - name: Build with Buildozer
+        uses: kivy/buildozer-action@v1.2.3
+        id: buildozer
+        with:
+          workdir: .
+          buildozer_version: master
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Vision-Guide-${{ steps.get-date.outputs.date }}
+          path: bin/*.apk
