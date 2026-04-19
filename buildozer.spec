@@ -1,3 +1,4 @@
+# AI Vision Guide - Android Build Configuration
 [app]
 
 # (str) Title of your application

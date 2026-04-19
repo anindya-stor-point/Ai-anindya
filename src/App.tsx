@@ -1,3 +1,4 @@
+/** AI Vision Guide - Web Simulator & Dashboard **/
 import React, { useState, useRef } from 'react';
 import { 
   Zap, 

@@ -1,3 +1,4 @@
+# AI Vision Guide - Professional Android App Implementation
 import os
 import json
 import base64
