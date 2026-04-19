@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AI Vision Guide - Android Project 🚀
 
-# Run and deploy your AI Studio app
+This is a professional Android application project designed for "Live Screen Observation and User Guidance" using the power of **Gemini 1.5 Flash**.
 
-This contains everything you need to run your app locally.
+## Features 🌟
+- **Live Screen Capture**: Uses Android MediaProjection API.
+- **AI Guidance**: Analyzes screenshots in real-time to suggest the next user action.
+- **Accessibility Integration**: Designed to work as an overlay on top of other apps.
+- **Dynamic Overlays**: Renders guidance markers (arrows/boxes) directly on the UI coordinate system.
 
-View your app in AI Studio: https://ai.studio/apps/de44bdc6-134c-4e93-9fb0-84f7421f5928
+## Project Structure 📁
+- `main.py`: Core logic using Kivy/KivyMD.
+- `buildozer.spec`: Configuration for Android APK packaging.
+- `requirements.txt`: Python dependencies (Kivy, MD, Gemini SDK, etc.).
+- `.github/workflows/android.yml`: CI workflow for automated builds.
 
-## Run Locally
+## How to Build 🛠️
 
-**Prerequisites:**  Node.js
+1. **Local Setup**:
+   Clone this repository to your local Linux machine or use Google Colab.
+   
+2. **Configure API Key**:
+   Ensure your `GEMINI_API_KEY` is set in your environment variables.
 
+3. **Run Buildozer**:
+   ```bash
+   buildozer -v android debug
+   ```
+   *Note: Ensure you have the necessary Android SDK/NDK dependencies installed.*
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+4. **Install APK**:
+   Find the resulting APK in the `bin/` folder and install it on your Android device.
+
+## License 📄
+Apache-2.0
