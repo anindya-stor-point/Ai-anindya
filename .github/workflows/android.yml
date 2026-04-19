@@ -1,4 +1,4 @@
-# Kivy Buildozer Android CI
+# Kivy Buildozer Android CI (Manual Setup)
 name: Android CI
 
 on:
@@ -14,21 +14,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get Date
-        shell: bash
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
         run: |
-          echo "date=$(date +'%Y-%m-%d--%H-%M')" >> $GITHUB_OUTPUT
-        id: get-date
+          sudo apt update
+          sudo apt install -y build-essential libffi-dev git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libsqlite3-dev
+          pip install --user --upgrade buildozer Cython==0.29.33
 
       - name: Build with Buildozer
-        uses: ArtemSashchuk/buildozer-action@v1
-        id: buildozer
-        with:
-          workdir: .
-          buildozer_version: master
+        run: |
+          export PATH=$PATH:$HOME/.local/bin
+          buildozer android debug
+        env:
+          # Buildozer needs to accept Android SDK license
+          BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Vision-Guide-${{ steps.get-date.outputs.date }}
+          name: AI-Vision-Guide-APK
           path: bin/*.apk
