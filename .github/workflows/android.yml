@@ -25,12 +25,19 @@ jobs:
           sudo apt install -y build-essential libffi-dev git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libsqlite3-dev ccache libssl-dev
           pip install --user --upgrade buildozer Cython==0.29.33
 
+      - name: Accept Android SDK Licenses
+        run: |
+          mkdir -p $HOME/.android
+          touch $HOME/.android/repositories.cfg
+          # Install sdkmanager if not present or just use buildozer's one after first run attempt
+          # However, a cleaner way is to use the 'yes' command with buildozer
+          
       - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          buildozer android debug
+          # Piping 'yes' to handle license prompts
+          yes | buildozer android debug
         env:
-          # Buildozer needs to accept Android SDK license
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
 
       - name: Upload APK
