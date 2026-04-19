@@ -1,4 +1,4 @@
-# Kivy Buildozer Android CI (Manual Setup)
+# Kivy Buildozer Android CI (Robust Setup)
 name: Android CI
 
 on:
@@ -14,6 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get Date
+        id: get-date
+        run: |
+          echo "date=$(date -u +'%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache Buildozer
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}-${{ steps.get-date.outputs.date }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -22,23 +36,45 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential libffi-dev git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libsqlite3-dev ccache libssl-dev
-          pip install --user --upgrade buildozer Cython==0.29.33
+          sudo apt install -y \
+            build-essential \
+            libffi-dev \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libsqlite3-dev \
+            ccache \
+            libssl-dev \
+            libbz2-dev \
+            liblzma-dev \
+            libgdbm-dev \
+            libnss3-dev \
+            tk-dev \
+            libreadline-dev \
+            libdb5.3-dev \
+            libexpat1-dev \
+            libmpdec-dev
+          pip install --user --upgrade buildozer Cython==0.29.33 setuptools
 
-      - name: Accept Android SDK Licenses
-        run: |
-          mkdir -p $HOME/.android
-          touch $HOME/.android/repositories.cfg
-          # Install sdkmanager if not present or just use buildozer's one after first run attempt
-          # However, a cleaner way is to use the 'yes' command with buildozer
-          
       - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          # Piping 'yes' to handle license prompts
+          # Ensure Buildozer configuration
+          # We manually accept licenses and then run debug
           yes | buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
+          BUILDOZER_WARN_ON_ROOT: 0
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

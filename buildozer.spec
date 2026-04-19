@@ -58,6 +58,10 @@ orientation = portrait
 # Format: <service_name>:<python_file>
 #android.services = screenmonitor:service.py
 
+# (list) The Android architectures to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
+# In most cases, arm64-v8a is the modern standard for Android.
+android.archs = arm64-v8a
+
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
