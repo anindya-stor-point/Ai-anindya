@@ -21,7 +21,7 @@ jobs:
         id: get-date
 
       - name: Build with Buildozer
-        uses: kivy/buildozer-action@v1.2.3
+        uses: ArtemSashchuk/buildozer-action@v1
         id: buildozer
         with:
           workdir: .
