@@ -36,10 +36,10 @@ android.api = 33
 android.minapi = 21
 
 # (int) Android SDK version to use
-#android.sdk = 33
+android.sdk = 33
 
 # (str) Android NDK version to use
-#android.ndk = 25b
+android.ndk = 25b
 
 # (bool) use poseidon (android only)
 #android.use_poseidon = True
@@ -59,8 +59,7 @@ orientation = portrait
 #android.services = screenmonitor:service.py
 
 # (list) The Android architectures to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-# In most cases, arm64-v8a is the modern standard for Android.
-android.archs = arm64-v8a
+android.archs = armeabi-v7a, arm64-v8a
 
 [buildozer]
 
@@ -69,3 +68,6 @@ log_level = 2
 
 # (int) Display warning if buildozer is run as root (0 = off, 1 = on)
 warn_on_root = 1
+
+# (bool) Use the system Android SDK/NDK
+android.accept_sdk_license = True

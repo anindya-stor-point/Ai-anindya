@@ -28,6 +28,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildozer-
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -42,7 +48,6 @@ jobs:
             git \
             zip \
             unzip \
-            openjdk-17-jdk \
             python3-pip \
             autoconf \
             libtool \
@@ -68,9 +73,22 @@ jobs:
 
       - name: Build with Buildozer
         run: |
+          # Purge system Android variables to prevent version conflicts
+          unset ANDROID_SDK_ROOT
+          unset ANDROID_HOME
+          unset ANDROID_NDK_HOME
+          unset ANDROID_NDK_ROOT
+          
+          # Force Java 17 PATH and JAVA_HOME
+          export PATH=$JAVA_HOME_17_X64/bin:$PATH
+          export JAVA_HOME=$JAVA_HOME_17_X64
+          
+          # Verify Java version
+          java -version
+          
           export PATH=$PATH:$HOME/.local/bin
-          # Ensure Buildozer configuration
-          # We manually accept licenses and then run debug
+          # Buildozer debug
+          # License accepted via buildozer.spec and 'yes' fallback
           yes | buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
