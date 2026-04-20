@@ -82,7 +82,8 @@ jobs:
           
           # Buildozer debug
           # Let Buildozer automatically download and configure its own SDK/NDK
-          buildozer android debug
+          # We pipe "yes" to automatically accept all Android SDK licenses
+          yes | buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
           BUILDOZER_WARN_ON_ROOT: 0
