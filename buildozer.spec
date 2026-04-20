@@ -21,7 +21,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy==2.3.0,kivymd==1.2.0,google-generativeai,pillow,pyjnius,python-dotenv,openssl,requests,urllib3,certifi,idna,charset-normalizer,pyasn1,pyasn1-modules,cachetools,google-auth,google-api-core
+requirements = python3,kivy==2.3.0,kivymd==1.2.0,pillow,pyjnius,python-dotenv,openssl,requests,urllib3,certifi,idna,charset-normalizer
 
 # (str) Custom source folders for PyobjC (iOS)
 #osx.python_arch = arm64

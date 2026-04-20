@@ -35,8 +35,9 @@ def show_error_popup(error_msg):
     btn.bind(on_release=popup.dismiss)
     popup.open()
 
-# Gemini SDK Integration
-import google.generativeai as genai
+# Gemini SDK Integration (Replaced with Raw requests for Android Stability)
+import requests
+import base64
 from PIL import Image
 
 # Android Native Integration
@@ -137,15 +138,10 @@ class AIVisionApp(MDApp):
         self.api_key = os.environ.get("GEMINI_API_KEY", user_key)
         
         if self.api_key:
-            try:
-                # Using 'rest' transport is often more stable on Android than gRPC
-                genai.configure(api_key=self.api_key, transport='rest')
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
-            except Exception as e:
-                print(f"Model init error: {e}")
-                self.model = None
+            self.model_active = True
+            print("API Key loaded, AI Service Ready.")
         else:
-            self.model = None
+            self.model_active = False
 
     def build(self):
         try:
@@ -258,7 +254,7 @@ class AIVisionApp(MDApp):
             time.sleep(8) # Standard periodic analysis
 
     def run_ai_logic(self, img):
-        if not self.model: return
+        if not self.model_active: return
 
         prompt = """
         Role: Android UI Expert & Visual Guide.
@@ -276,9 +272,38 @@ class AIVisionApp(MDApp):
         """
         
         try:
-            response = self.model.generate_content([prompt, img])
-            # Parse response
-            raw_text = response.text.replace('```json', '').replace('```', '').strip()
+            # Convert PIL image to base64
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG")
+            img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
+            headers = {'Content-Type': 'application/json'}
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                    ]
+                }],
+                "generationConfig": {"response_mime_type": "application/json"}
+            }
+
+            res = requests.post(url, headers=headers, json=payload, timeout=15)
+            if res.status_code != 200:
+                print(f"API Error: {res.text}")
+                return
+
+            response_data = res.json()
+            
+            # Navigate through Gemini REST API response structure
+            try:
+                raw_text = response_data['candidates'][0]['content']['parts'][0]['text']
+            except (KeyError, IndexError):
+                print(f"Invalid API response format: {response_data}")
+                return
+
+            raw_text = raw_text.replace('```json', '').replace('```', '').strip()
             data = json.loads(raw_text)
             
             # Map percentages to system pixels
