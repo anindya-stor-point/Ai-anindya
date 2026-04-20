@@ -21,7 +21,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy==2.3.0,kivymd==1.2.0,google-generativeai,pillow,pyjnius,python-dotenv,openssl,requests,urllib3,certifi,idna,charset-normalizer
+requirements = python3,kivy==2.3.0,kivymd==1.2.0,google-generativeai,pillow,pyjnius,python-dotenv,openssl,requests,urllib3,certifi,idna,charset-normalizer,pyasn1,pyasn1-modules,cachetools,google-auth,google-api-core
 
 # (str) Custom source folders for PyobjC (iOS)
 #osx.python_arch = arm64
@@ -35,8 +35,11 @@ android.api = 31
 # (int) Minimum API your APK will support
 android.minapi = 21
 
-# (int) Android SDK version to use
-# android.sdk = 33
+# (str) Android SDK directory
+android.sdk_path = /usr/local/lib/android/sdk
+
+# (str) Android NDK directory 
+android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
 
 # (str) Android NDK version to use
 android.ndk = 25b

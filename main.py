@@ -105,19 +105,26 @@ class AIVisionApp(MDApp):
         self.guidance_box = None
         self.api_key = os.environ.get("GEMINI_API_KEY", "")
         if self.api_key:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
+            try:
+                # Using 'rest' transport is often more stable on Android than gRPC
+                genai.configure(api_key=self.api_key, transport='rest')
+                self.model = genai.GenerativeModel('gemini-1.5-flash')
+            except Exception as e:
+                print(f"Model init error: {e}")
+                self.model = None
         else:
             self.model = None
 
     def build(self):
         try:
             # Configure Window to be transparent
+            # Black with 0 alpha (transparent)
             Window.clearcolor = (0, 0, 0, 0)
             return Builder.load_string(KV)
         except Exception as e:
-            show_error_popup(f"Build Error: {str(e)}\n\n{traceback.format_exc()}")
-            return Label(text="Fatal Error: Check Popup")
+            traceback_msg = traceback.format_exc()
+            Clock.schedule_once(lambda dt: show_error_popup(f"Build Error: {str(e)}\n\n{traceback_msg}"))
+            return Label(text="Fatal Error Initializing UI")
 
     def on_start(self):
         try:
@@ -129,20 +136,25 @@ class AIVisionApp(MDApp):
                     "android.permission.FOREGROUND_SERVICE"
                 ])
         except Exception as e:
-            show_error_popup(f"Startup/Permission Error:\n{str(e)}")
+            traceback_msg = traceback.format_exc()
+            Clock.schedule_once(lambda dt: show_error_popup(f"Startup/Permission Error:\n{str(e)}\n\n{traceback_msg}"))
 
     def check_overlay_permission(self):
         # Checks if we have permission to draw over other apps
         if platform == 'android':
-            Settings = autoclass('android.provider.Settings')
-            if not Settings.canDrawOverlays(currentActivity):
-                Snackbar(text="Please allow 'Display over other apps' to use overlay guidance").open()
-                Intent = autoclass('android.content.Intent')
-                Uri = autoclass('android.net.Uri')
-                intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                               Uri.parse("package:" + currentActivity.getPackageName()))
-                currentActivity.startActivity(intent)
-                return False
+            try:
+                Settings = autoclass('android.provider.Settings')
+                if not Settings.canDrawOverlays(currentActivity):
+                    Snackbar(text="পারমিশন দিন: 'Display over other apps'").open()
+                    Intent = autoclass('android.content.Intent')
+                    Uri = autoclass('android.net.Uri')
+                    intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                   Uri.parse("package:" + currentActivity.getPackageName()))
+                    currentActivity.startActivity(intent)
+                    return False
+            except Exception as e:
+                print(f"Overlay Permission Error: {e}")
+                return True # Fallback to continue if check fails
         return True
 
     def on_pause(self):
@@ -184,12 +196,19 @@ class AIVisionApp(MDApp):
 
     def analyze_single_frame(self):
         # Capture logic
-        # Note: Window.screenshot captures the app's current window.
-        # For actual 3rd party app observation, MediaProjection is required.
         try:
             time.sleep(1.5) # Time for screen to settle
-            Window.screenshot("frame.png")
-            img = Image.open("frame.png")
+            
+            # Use app's local path to ensure write permissions
+            save_path = os.path.join(self.user_data_dir, "frame.png")
+            Window.screenshot(save_path)
+            
+            # Wait for file to exist
+            for _ in range(5):
+                if os.path.exists(save_path): break
+                time.sleep(0.1)
+                
+            img = Image.open(save_path)
             self.run_ai_logic(img)
         except Exception as e:
             print(f"Frame error: {e}")

@@ -73,18 +73,30 @@ jobs:
 
       - name: Build with Buildozer
         run: |
-          # Use system Java 17
+          # Configure Java
           export JAVA_HOME=$JAVA_HOME_17_X64
           export PATH=$JAVA_HOME/bin:$PATH
           
-          # Verify Environment
-          java -version
+          # Configure Android Environment
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          # Find any available NDK r25b or similar if possible
+          # On the runner, NDK is usually at $ANDROID_HOME/ndk/
+          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
           
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          
+          # Force install API 31 platform to the specific runner path
+          echo "y" | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-31" "build-tools;31.0.3"
+          
+          # Add local bin to path
           export PATH=$PATH:$HOME/.local/bin
+          
           # Buildozer debug
-          # We no longer unset Android variables to allow using pre-installed Runner SDK if available
-          # but we force Buildozer to accept licenses
-          yes | buildozer android debug
+          # Setting env variables that Buildozer/p4a respect to avoid downloads
+          export P4A_SDK_DIR=$ANDROID_HOME
+          export P4A_NDK_DIR=$ANDROID_NDK_HOME
+          
+          buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
           BUILDOZER_WARN_ON_ROOT: 0
