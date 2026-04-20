@@ -217,103 +217,88 @@ class AIVisionApp(MDApp):
             
         # Move app to background so user sees their phone screen
         if platform == 'android':
-            move_app_to_background()
-            
-        # Start background loop
-        threading.Thread(target=self.main_loop, daemon=True).start()
-        Snackbar(text="AI Logic Active in Background").open()
+            try:
+                # Start the Background Foreground Service using Kivy's generated Java class
+                from jnius import autoclass
+                from android import activity
+                
+                NativeHelper = autoclass('org.ai.tools.aivisionguide.NativeHelper')
+                mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
+                
+                def on_activity_result(request_code, result_code, intent):
+                    if request_code == 1000:
+                        if result_code == -1: # RESULT_OK
+                            NativeHelper.initProjection(mActivity, result_code, intent)
+                            Snackbar(text="Screen Access Granted!").open()
+                            
+                            # Now safe to start service and loops
+                            service = autoclass('org.ai.tools.aivisionguide.ServiceAivision')
+                            service.start(mActivity, str(self.api_key))
+                            
+                            move_app_to_background()
+                            threading.Thread(target=self.main_loop, daemon=True).start()
+                            Snackbar(text="AI Service running natively in background").open()
+                        else:
+                            Snackbar(text="Permission Denied for Screen Observation").open()
+                            
+                activity.bind(on_activity_result=on_activity_result)
+                NativeHelper.requestCapture(mActivity, 1000)
+            except Exception as e:
+                print(f"Foreground setup failed: {e}")
+                Snackbar(text=f"Setup failed: {e}").open()
+        else:
+            threading.Thread(target=self.main_loop, daemon=True).start()
 
     def trigger_analysis(self):
-        # Single analysis pass
-        threading.Thread(target=self.analyze_single_frame, daemon=True).start()
-
-    def analyze_single_frame(self):
-        # Capture logic
-        try:
-            time.sleep(1.5) # Time for screen to settle
-            
-            # Use app's local path to ensure write permissions
-            save_path = os.path.join(self.user_data_dir, "frame.png")
-            Window.screenshot(save_path)
-            
-            # Wait for file to exist
-            for _ in range(5):
-                if os.path.exists(save_path): break
-                time.sleep(0.1)
-                
-            img = Image.open(save_path)
-            self.run_ai_logic(img)
-        except Exception as e:
-            print(f"Frame error: {e}")
+        # Allow forcing of frame update
+        frame_path = os.path.join(self.user_data_dir, "frame.png")
+        if os.path.exists(frame_path):
+            os.remove(frame_path)
 
     def main_loop(self):
-        while self.is_active:
-            # Only analyze if no box is showing
-            if self.guidance_box and self.guidance_box.active_coord is None:
-                self.analyze_single_frame()
-            time.sleep(8) # Standard periodic analysis
-
-    def run_ai_logic(self, img):
-        if not self.model_active: return
-
-        prompt = """
-        Role: Android UI Expert & Visual Guide.
-        Task: Analyze the screenshot and provide one critical next step for the user.
-        Rules:
-        1. Find X and Y as percentages (0-100).
-        2. Give a short, helpful guidance tip in BENGALI (max 5-7 words).
-        3. Be specific: "নীল বাটনটিতে ক্লিক করুন", "ব্যাকে যান", "সার্চ বারে লিখুন"।
-        Output MUST be strictly valid JSON:
-        {
-            "x_p": float,
-            "y_p": float,
-            "tip": "Short Bengali Instruction"
-        }
-        """
+        result_path = os.path.join(self.user_data_dir, "result.json")
+        frame_path = os.path.join(self.user_data_dir, "frame.png")
         
-        try:
-            # Convert PIL image to base64
-            buffered = BytesIO()
-            img.save(buffered, format="JPEG")
-            img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
-            headers = {'Content-Type': 'application/json'}
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt},
-                        {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
-                    ]
-                }],
-                "generationConfig": {"response_mime_type": "application/json"}
-            }
-
-            res = requests.post(url, headers=headers, json=payload, timeout=15)
-            if res.status_code != 200:
-                print(f"API Error: {res.text}")
-                return
-
-            response_data = res.json()
+        NativeHelper = None
+        if platform == 'android':
+            from jnius import autoclass
+            NativeHelper = autoclass('org.ai.tools.aivisionguide.NativeHelper')
+            mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
             
-            # Navigate through Gemini REST API response structure
-            try:
-                raw_text = response_data['candidates'][0]['content']['parts'][0]['text']
-            except (KeyError, IndexError):
-                print(f"Invalid API response format: {response_data}")
-                return
+        while self.is_active:
+            # Drop a frame for background service to pick up
+            if not os.path.exists(frame_path) and not os.path.exists(result_path):
+                try:
+                    if platform == 'android' and NativeHelper:
+                        NativeHelper.captureFrame(frame_path)
+                    else:
+                        Window.screenshot(frame_path)
+                except Exception as e:
+                    print(f"Screenshot error: {e}")
+            
+            # Read IPC json payload
+            if os.path.exists(result_path):
+                time.sleep(0.5)
+                try:
+                    with open(result_path, 'r', encoding='utf-8') as f:
+                        raw_text = f.read()
+                    os.remove(result_path)
+                    
+                    data = json.loads(raw_text)
+                    if platform == 'android' and NativeHelper:
+                        # Draw natively over the OS (bypasses Kivy background constraints)
+                        NativeHelper.showGuidance(mActivity, data['x_p'], data['y_p'], data['tip'])
+                    else:
+                        w, h = Window.size
+                        x = (data['x_p'] / 100.0) * w
+                        y = ((100 - data['y_p']) / 100.0) * h
+                        Clock.schedule_once(lambda dt: self.display_guidance(x, y, data['tip']))
+                except Exception as e:
+                    if os.path.exists(result_path):
+                        os.remove(result_path)
+                        
+            time.sleep(1)
 
-            raw_text = raw_text.replace('```json', '').replace('```', '').strip()
-            data = json.loads(raw_text)
-            
-            # Map percentages to system pixels
-            w, h = Window.size
-            x = (data['x_p'] / 100.0) * w
-            y = ((100 - data['y_p']) / 100.0) * h
-            
-            Clock.schedule_once(lambda dt: self.display_guidance(x, y, data['tip']))
-        except Exception as e:
-            print(f"AI Failure: {e}")
 
     def display_guidance(self, x, y, tip):
         if self.is_active and self.guidance_box:

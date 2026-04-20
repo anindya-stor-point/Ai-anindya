@@ -27,7 +27,7 @@ requirements = python3,kivy==2.3.0,kivymd==1.2.0,pillow,pyjnius,python-dotenv,op
 #osx.python_arch = arm64
 
 # (list) Permissions
-android.permissions = INTERNET, SYSTEM_ALERT_WINDOW, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, FOREGROUND_SERVICE, CAMERA, RECORD_AUDIO
+android.permissions = INTERNET, SYSTEM_ALERT_WINDOW, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, FOREGROUND_SERVICE, CAMERA, RECORD_AUDIO, WAKE_LOCK
 
 # (int) Android API to use
 android.api = 33
@@ -58,11 +58,14 @@ orientation = portrait
 
 # (list) List of service to declare
 # Specify any service that needs to be declared in AndroidManifest
-# Format: <service_name>:<python_file>
-#android.services = screenmonitor:service.py
+# Format: <service_name>:<python_file>:<foreground|background>
+android.services = aivision:service.py:foreground
 
 # (list) The Android architectures to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
 android.archs = arm64-v8a
+
+# (list) add java source files
+android.add_src = java_src
 
 [buildozer]
 
