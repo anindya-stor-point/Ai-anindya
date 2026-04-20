@@ -53,46 +53,52 @@ if platform == 'android':
 
 KV = '''
 MDScreen:
-    md_bg_color: 0, 0, 0, 0.3  # Slight tint for the main UI
     
     MDCard:
-        size_hint: 0.85, 0.45
+        size_hint: 0.9, 0.6
         pos_hint: {"center_x": .5, "center_y": .5}
-        padding: "20dp"
-        spacing: "15dp"
+        padding: "24dp"
+        spacing: "24dp"
         orientation: "vertical"
-        radius: [25, ]
+        radius: [30, ]
         elevation: 4
-        md_bg_color: 0.1, 0.1, 0.1, 1
+        md_bg_color: app.theme_cls.bg_dark
+        line_color: app.theme_cls.primary_color
+        line_width: 1.2
 
         MDLabel:
-            text: "AI VISION GUIDE"
+            text: "AI VISION (PRO)"
             halign: "center"
-            font_style: "H5"
+            font_style: "H4"
             bold: True
-            theme_text_color: "Custom"
-            text_color: 1, 1, 1, 1
+            theme_text_color: "Primary"
+
+        MDLabel:
+            text: "Offline-Ready Dashboard & Native Service"
+            halign: "center"
+            font_style: "Caption"
+            theme_text_color: "Hint"
 
         MDLabel:
             id: status_label
-            text: "Ready to assist"
+            text: "App started successfully. No network needed to load."
             halign: "center"
             theme_text_color: "Secondary"
-            font_style: "Caption"
+            font_style: "Body2"
 
         MDFillRoundFlatButton:
             id: action_btn
-            text: "START GUIDANCE"
+            text: "START NATIVE GUIDANCE"
             font_size: "18sp"
             size_hint: (1, 0.25)
-            on_release: app.start_ai_service()
-            md_bg_color: 0, 0.5, 0.2, 1
+            on_release: app.safe_start_ai_service()
+            md_bg_color: app.theme_cls.primary_color
 
         MDLabel:
-            text: "Background Analysis Active"
+            text: "Note: Preview shows design only.\\nInstall APK for screen observation."
             halign: "center"
             font_style: "Overline"
-            theme_text_color: "Hint"
+            theme_text_color: "Error"
 '''
 
 class AIVisionApp(MDApp):
@@ -112,15 +118,24 @@ class AIVisionApp(MDApp):
 
     def build(self):
         try:
-            self.theme_cls.primary_palette = "Blue"
+            self.theme_cls.primary_palette = "DeepPurple"
+            self.theme_cls.accent_palette = "Teal"
             self.theme_cls.theme_style = "Dark"
             # Solid standard background to prevent completely blank transparent loading
-            Window.clearcolor = (0.05, 0.05, 0.15, 1)
+            Window.clearcolor = (0, 0, 0, 1)
             return Builder.load_string(KV)
         except Exception as e:
             traceback_msg = traceback.format_exc()
             Clock.schedule_once(lambda dt: show_error_popup(f"Build Error: {str(e)}\n\n{traceback_msg}"))
             return Label(text="Fatal Error Initializing UI")
+
+    def safe_start_ai_service(self):
+        try:
+            self.start_ai_service()
+        except Exception as e:
+            traceback_msg = traceback.format_exc()
+            Snackbar(text=f"ERROR: {str(e)}").open()
+            print(f"Exception during start: {traceback_msg}")
 
     def on_start(self):
         pass # Moving permission request to button click so it doesn't freeze the startup dashboard
@@ -199,12 +214,22 @@ class AIVisionApp(MDApp):
                             h = metrics.heightPixels
                             dpi = metrics.densityDpi
                             
-                            intent_uri = intent.toUri(0)
-                            args = f"{self.api_key}|||{w}|||{h}|||{dpi}|||{intent_uri}"
+                            # Store the EXACT intent in memory so Mediaprojection token is not lost 
+                            NativeHelper.staticDataIntent = intent
                             
-                            # Start Background Service
-                            service = autoclass('org.ai.tools.aivisionguide.ServiceAivision')
-                            service.start(mActivity, args)
+                            # Start Native Background Service directly
+                            Intent = autoclass('android.content.Intent')
+                            ServiceClass = autoclass('org.ai.tools.aivisionguide.ScreenCaptureService')
+                            Context = autoclass('android.content.Context')
+                            
+                            service_intent = Intent(mActivity, ServiceClass)
+                            service_intent.putExtra("API_KEY", self.api_key)
+                            service_intent.putExtra("WIDTH", w)
+                            service_intent.putExtra("HEIGHT", h)
+                            service_intent.putExtra("DPI", dpi)
+                            
+                            # Android 8.0+ requires startForegroundService
+                            mActivity.startForegroundService(service_intent)
                             
                             move_app_to_background()
                             Snackbar(text="Realtime Native Vision Active").open()

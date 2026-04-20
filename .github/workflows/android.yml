@@ -86,7 +86,7 @@ jobs:
           
           # Pre-accept licenses and install required platforms and build-tools
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;25.2.9519653"
           
           # Fix Gradle memory limits
           export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.daemon=false"

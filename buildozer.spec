@@ -27,10 +27,10 @@ requirements = python3,kivy==2.3.0,kivymd==1.2.0,pillow,pyjnius,python-dotenv,op
 #osx.python_arch = arm64
 
 # (list) Permissions
-android.permissions = INTERNET, SYSTEM_ALERT_WINDOW, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, FOREGROUND_SERVICE, CAMERA, RECORD_AUDIO, WAKE_LOCK
+android.permissions = INTERNET, SYSTEM_ALERT_WINDOW, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PROJECTION, FOREGROUND_SERVICE_MICROPHONE, CAMERA, RECORD_AUDIO, WAKE_LOCK
 
 # (int) Android API to use
-android.api = 33
+android.api = 34
 
 # (int) Minimum API your APK will support
 android.minapi = 21
@@ -48,18 +48,11 @@ android.ndk = 25b
 #android.use_poseidon = True
 
 # (list) Services to create
-#android.services = monitor:monitor_service.py
-
-# (list) Android entry point, default is to use start.py
-#android.entrypoint = org.kivy.android.PythonActivity
-
-# (list) Screen orientation
-orientation = portrait
-
-# (list) List of service to declare
-# Specify any service that needs to be declared in AndroidManifest
 # Format: <service_name>:<python_file>:<foreground|background>
-android.services = aivision:service.py:foreground
+# android.services = aivision:service.py:foreground
+
+# Android Manifest Additions
+android.manifest.application_extra = <service android:name="org.ai.tools.aivisionguide.ScreenCaptureService" android:foregroundServiceType="mediaProjection|microphone" android:exported="false" />
 
 # (list) The Android architectures to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
 android.archs = arm64-v8a

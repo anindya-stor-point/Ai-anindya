@@ -61,7 +61,8 @@ public class NativeHelper {
     public static boolean isListening = false;
     public static String currentVoiceCommand = "";
     public static View micButtonView;
-
+    public static Intent staticDataIntent;
+    
     public static void requestCapture(Activity activity, int requestCode) {
         if (mpm == null) {
             mpm = (MediaProjectionManager) activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
@@ -162,6 +163,13 @@ public class NativeHelper {
 
     public static void stopContinuousAnalysis(Context context) {
         isLooping = false;
+        
+        // Stop the native Background Service
+        try {
+            Intent serviceIntent = new Intent(context, ScreenCaptureService.class);
+            context.stopService(serviceIntent);
+        } catch (Exception e) {}
+        
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
                 if (speechRecognizer != null) {
