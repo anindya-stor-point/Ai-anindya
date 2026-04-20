@@ -30,7 +30,7 @@ requirements = python3,kivy==2.3.0,kivymd==1.2.0,google-generativeai,pillow,pyjn
 android.permissions = INTERNET, SYSTEM_ALERT_WINDOW, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, FOREGROUND_SERVICE, CAMERA, RECORD_AUDIO
 
 # (int) Android API to use
-android.api = 31
+android.api = 33
 
 # (int) Minimum API your APK will support
 android.minapi = 21

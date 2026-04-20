@@ -52,17 +52,46 @@ if platform == 'android':
 
 KV = '''
 MDScreen:
-    md_bg_color: 0, 0, 0, 0  # Background transparency
+    md_bg_color: 0, 0, 0, 0.3  # Slight tint for the main UI
     
-    MDFloatLayout:
+    MDCard:
+        size_hint: 0.85, 0.45
+        pos_hint: {"center_x": .5, "center_y": .5}
+        padding: "20dp"
+        spacing: "15dp"
+        orientation: "vertical"
+        radius: [25, ]
+        elevation: 4
+        md_bg_color: 0.1, 0.1, 0.1, 1
+
+        MDLabel:
+            text: "AI VISION GUIDE"
+            halign: "center"
+            font_style: "H5"
+            bold: True
+            theme_text_color: "Custom"
+            text_color: 1, 1, 1, 1
+
+        MDLabel:
+            id: status_label
+            text: "Ready to assist"
+            halign: "center"
+            theme_text_color: "Secondary"
+            font_style: "Caption"
+
         MDFillRoundFlatButton:
             id: action_btn
-            text: "START SERVICE"
-            font_size: "20sp"
-            size_hint: (0.7, 0.1)
-            pos_hint: {"center_x": .5, "center_y": .5}
+            text: "START GUIDANCE"
+            font_size: "18sp"
+            size_hint: (1, 0.25)
             on_release: app.start_ai_service()
-            md_bg_color: 0, 0.4, 0, 1
+            md_bg_color: 0, 0.5, 0.2, 1
+
+        MDLabel:
+            text: "Background Analysis Active"
+            halign: "center"
+            font_style: "Overline"
+            theme_text_color: "Hint"
 '''
 
 class InteractionBox(FloatLayout):
@@ -103,7 +132,10 @@ class AIVisionApp(MDApp):
         super().__init__(**kwargs)
         self.is_active = False
         self.guidance_box = None
-        self.api_key = os.environ.get("GEMINI_API_KEY", "")
+        # User requested fallback key
+        user_key = "AIzaSyCb_jOE_RIDEmY59HDAqpHyb_CUO5viCs0"
+        self.api_key = os.environ.get("GEMINI_API_KEY", user_key)
+        
         if self.api_key:
             try:
                 # Using 'rest' transport is often more stable on Android than gRPC
@@ -117,6 +149,8 @@ class AIVisionApp(MDApp):
 
     def build(self):
         try:
+            self.theme_cls.primary_palette = "DeepPurple"
+            self.theme_cls.theme_style = "Dark"
             # Configure Window to be transparent
             # Black with 0 alpha (transparent)
             Window.clearcolor = (0, 0, 0, 0)
@@ -173,9 +207,12 @@ class AIVisionApp(MDApp):
             return
 
         self.is_active = True
-        # Hide the main button
-        self.root.ids.action_btn.opacity = 0
+        # Update UI state
+        self.root.ids.status_label.text = "Background AI Active"
+        self.root.ids.status_label.text_color = (0, 0.8, 0, 1)
+        self.root.ids.action_btn.opacity = 0.5
         self.root.ids.action_btn.disabled = True
+        self.root.ids.action_btn.text = "SERVICE RUNNING"
         
         # Add the interaction overlay
         if not self.guidance_box:
@@ -224,17 +261,17 @@ class AIVisionApp(MDApp):
         if not self.model: return
 
         prompt = """
-        Role: Android UI Assistant.
-        Task: Observe the screen screenshot and find the single most important action the user should take next.
+        Role: Android UI Expert & Visual Guide.
+        Task: Analyze the screenshot and provide one critical next step for the user.
         Rules:
-        1. Identify the X and Y percentages (0-100) of the target element.
-        2. Provide a very short instruction in Bengali (e.g., "এই বাটনে ক্লিক করুন", "ব্যাকে যান", "সার্চ বারে লিখুন").
-        3. Output MUST be strictly JSON.
-        JSON Format:
+        1. Find X and Y as percentages (0-100).
+        2. Give a short, helpful guidance tip in BENGALI (max 5-7 words).
+        3. Be specific: "নীল বাটনটিতে ক্লিক করুন", "ব্যাকে যান", "সার্চ বারে লিখুন"।
+        Output MUST be strictly valid JSON:
         {
             "x_p": float,
             "y_p": float,
-            "tip": "Bengali Text"
+            "tip": "Short Bengali Instruction"
         }
         """
         

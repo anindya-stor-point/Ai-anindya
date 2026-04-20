@@ -79,23 +79,20 @@ jobs:
           
           # Configure Android Environment
           export ANDROID_HOME=$ANDROID_SDK_ROOT
-          # Find any available NDK r25b or similar if possible
-          # On the runner, NDK is usually at $ANDROID_HOME/ndk/
-          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653
           
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          # Path to sdkmanager
+          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
           
-          # Force install API 31 platform to the specific runner path
-          echo "y" | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-31" "build-tools;31.0.3"
+          # Increase timeout and stability for sdkmanager
+          # Using API 33 as it's the standard for modern Buildozer/Runner
+          echo "y" | $SDKMANAGER --sdk_root=$ANDROID_HOME "platforms;android-33" "build-tools;33.0.2"
           
           # Add local bin to path
           export PATH=$PATH:$HOME/.local/bin
           
           # Buildozer debug
-          # Setting env variables that Buildozer/p4a respect to avoid downloads
-          export P4A_SDK_DIR=$ANDROID_HOME
-          export P4A_NDK_DIR=$ANDROID_NDK_HOME
-          
+          # Let Buildozer handle the SDK/NDK paths automatically if possible,
+          # but we've pre-seeded the API 33 platform above.
           buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
