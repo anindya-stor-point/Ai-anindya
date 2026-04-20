@@ -62,7 +62,7 @@ orientation = portrait
 #android.services = screenmonitor:service.py
 
 # (list) The Android architectures to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.archs = armeabi-v7a, arm64-v8a
+android.archs = arm64-v8a
 
 [buildozer]
 

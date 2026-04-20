@@ -88,6 +88,9 @@ jobs:
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
           /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
           
+          # Fix Gradle memory limits
+          export GRADLE_OPTS="-Xmx2048m -Dorg.gradle.daemon=false"
+          
           # Buildozer debug
           buildozer android debug
         env:
