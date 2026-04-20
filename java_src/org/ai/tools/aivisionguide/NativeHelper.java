@@ -39,6 +39,11 @@ import android.speech.SpeechRecognizer;
 import android.speech.RecognizerIntent;
 import android.speech.RecognitionListener;
 
+import android.view.MotionEvent;
+import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
+
 public class NativeHelper {
     public static MediaProjectionManager mpm;
     public static MediaProjection mediaProjection;
@@ -56,6 +61,9 @@ public class NativeHelper {
     public static View scanLine;
     public static TextView statusBadge;
 
+    public static TextToSpeech tts;
+    public static Vibrator vibrator;
+    
     public static volatile boolean isLooping = false;
     public static volatile boolean isProcessing = false;
     
@@ -90,6 +98,13 @@ public class NativeHelper {
         mWidth = screenWidth;
         mHeight = screenHeight;
         mScreenDensity = densityDpi;
+
+        vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+        tts = new TextToSpeech(context, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                tts.setLanguage(new Locale("bn", "BD"));
+            }
+        });
 
         if (mpm == null) {
             mpm = (MediaProjectionManager) context.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
@@ -290,6 +305,14 @@ public class NativeHelper {
                 if (windowManager == null) {
                     windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
                 }
+
+                // If already exists, remove it first to avoid "view already added" error
+                if (floatingBubble != null) {
+                    try {
+                        windowManager.removeView(floatingBubble);
+                    } catch (Exception e) {}
+                    floatingBubble = null;
+                }
                 
                 int type = android.os.Build.VERSION.SDK_INT >= 26 ? 
                         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : 
@@ -297,14 +320,20 @@ public class NativeHelper {
                 
                 WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                     WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT, type,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                     PixelFormat.TRANSLUCENT
                 );
-                params.gravity = Gravity.CENTER_VERTICAL | Gravity.RIGHT;
+                params.gravity = Gravity.TOP | Gravity.RIGHT;
+                params.y = 200; // Position it slightly down from the top
 
                 floatingBubble = new LinearLayout(context);
-                floatingBubble.setOrientation(LinearLayout.VERTICAL); // Stack vertically
-                floatingBubble.setPadding(15, 15, 15, 15);
+                floatingBubble.setOrientation(LinearLayout.VERTICAL);
+                floatingBubble.setPadding(10, 10, 10, 10);
+                // Semi-transparent dark background for the whole bubble container
+                GradientDrawable bubbleBg = new GradientDrawable();
+                bubbleBg.setColor(Color.parseColor("#44000000"));
+                bubbleBg.setCornerRadius(20);
+                floatingBubble.setBackground(bubbleBg);
                 
                 // Status Badge
                 statusBadge = new TextView(context);
@@ -312,7 +341,6 @@ public class NativeHelper {
                 statusBadge.setTextSize(9);
                 statusBadge.setGravity(Gravity.CENTER);
                 statusBadge.setTextColor(Color.parseColor("#88FFFFFF"));
-                statusBadge.setBackgroundColor(Color.parseColor("#AA000000"));
                 statusBadge.setPadding(10, 5, 10, 5);
                 
                 floatingBubble.addView(statusBadge, new LinearLayout.LayoutParams(-1, -2));
@@ -322,19 +350,18 @@ public class NativeHelper {
                 micButtonView = new View(context);
                 GradientDrawable micBg = new GradientDrawable();
                 micBg.setShape(GradientDrawable.OVAL);
-                micBg.setColor(Color.parseColor("#2196F3")); // Blue Mic
+                micBg.setColor(Color.parseColor("#2196F3"));
                 micBg.setStroke(4, Color.WHITE);
                 micButtonView.setBackground(micBg);
                 
                 TextView micTxt = new TextView(context);
                 micTxt.setText("MIC");
                 micTxt.setTextColor(Color.WHITE);
-                micTxt.setTextSize(14);
+                micTxt.setTextSize(12);
                 micTxt.setGravity(Gravity.CENTER);
                 
-                micLayout.addView(micButtonView, new FrameLayout.LayoutParams(140, 140));
-                micLayout.addView(micTxt, new FrameLayout.LayoutParams(140, 140));
-                
+                micLayout.addView(micButtonView, new FrameLayout.LayoutParams(120, 120));
+                micLayout.addView(micTxt, new FrameLayout.LayoutParams(120, 120));
                 micLayout.setOnClickListener(v -> toggleSpeechRecognition(context));
 
                 // STOP BUTTON
@@ -342,19 +369,18 @@ public class NativeHelper {
                 View stopCircle = new View(context);
                 GradientDrawable stopBg = new GradientDrawable();
                 stopBg.setShape(GradientDrawable.OVAL);
-                stopBg.setColor(Color.parseColor("#4CAF50")); // Green End
+                stopBg.setColor(Color.parseColor("#F44336")); // Red Stop
                 stopBg.setStroke(4, Color.WHITE);
                 stopCircle.setBackground(stopBg);
                 
                 TextView stopTxt = new TextView(context);
-                stopTxt.setText("X");
+                stopTxt.setText("OFF");
                 stopTxt.setTextColor(Color.WHITE);
-                stopTxt.setTextSize(20);
+                stopTxt.setTextSize(12);
                 stopTxt.setGravity(Gravity.CENTER);
 
-                stopLayout.addView(stopCircle, new FrameLayout.LayoutParams(140, 140));
-                stopLayout.addView(stopTxt, new FrameLayout.LayoutParams(140, 140));
-
+                stopLayout.addView(stopCircle, new FrameLayout.LayoutParams(120, 120));
+                stopLayout.addView(stopTxt, new FrameLayout.LayoutParams(120, 120));
                 stopLayout.setOnClickListener(v -> {
                     stopContinuousAnalysis(context);
                     Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
@@ -364,16 +390,44 @@ public class NativeHelper {
                     }
                 });
                 
-                // Add margins
-                LinearLayout.LayoutParams lpMic = new LinearLayout.LayoutParams(140, 140);
-                lpMic.bottomMargin = 20;
+                LinearLayout.LayoutParams lpItems = new LinearLayout.LayoutParams(120, 120);
+                lpItems.setMargins(0, 10, 0, 10);
+                lpItems.gravity = Gravity.CENTER_HORIZONTAL;
                 
-                floatingBubble.addView(micLayout, lpMic);
-                floatingBubble.addView(stopLayout, new LinearLayout.LayoutParams(140, 140));
+                floatingBubble.addView(micLayout, lpItems);
+                floatingBubble.addView(stopLayout, lpItems);
                 
                 windowManager.addView(floatingBubble, params);
+                
+                // DRAGGABLE LOGIC
+                floatingBubble.setOnTouchListener(new View.OnTouchListener() {
+                    private int initialX;
+                    private int initialY;
+                    private float initialTouchX;
+                    private float initialTouchY;
+
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+                        switch (event.getAction()) {
+                            case MotionEvent.ACTION_DOWN:
+                                initialX = params.x;
+                                initialY = params.y;
+                                initialTouchX = event.getRawX();
+                                initialTouchY = event.getRawY();
+                                return true;
+                            case MotionEvent.ACTION_MOVE:
+                                params.x = initialX + (int) (event.getRawX() - initialTouchX);
+                                params.y = initialY + (int) (event.getRawY() - initialTouchY);
+                                windowManager.updateViewLayout(floatingBubble, params);
+                                return true;
+                        }
+                        return false;
+                    }
+                });
+
+                Toast.makeText(context, "AI Vision Bubble Active", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                e.printStackTrace();
+                showDetailedError(context, "Bubble Render Fail: " + e.getMessage());
             }
         });
     }
@@ -516,6 +570,10 @@ public class NativeHelper {
                 tipText.setText(tip);
                 floatingView.setVisibility(View.VISIBLE);
                 
+                // Haptic Feedback & Voice Guidance
+                if (vibrator != null) vibrator.vibrate(150);
+                if (tts != null) tts.speak(tip, TextToSpeech.QUEUE_FLUSH, null, null);
+
                 // Hide automatically after 3.5 seconds to give user time to read
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (floatingView != null) {

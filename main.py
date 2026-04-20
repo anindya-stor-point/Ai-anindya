@@ -53,52 +53,98 @@ if platform == 'android':
 
 KV = '''
 MDScreen:
+    md_bg_color: [0.02, 0.02, 0.02, 1]
     
-    MDCard:
-        size_hint: 0.9, 0.6
-        pos_hint: {"center_x": .5, "center_y": .5}
-        padding: "24dp"
-        spacing: "24dp"
+    BoxLayout:
         orientation: "vertical"
-        radius: [30, ]
-        elevation: 4
-        md_bg_color: app.theme_cls.bg_dark
-        line_color: app.theme_cls.primary_color
-        line_width: 1.2
+        padding: "20dp"
+        spacing: "20dp"
 
-        MDLabel:
-            text: "AI VISION (PRO)"
-            halign: "center"
-            font_style: "H4"
-            bold: True
-            theme_text_color: "Primary"
+        MDCard:
+            size_hint: 1, 0.4
+            radius: [0, 0, 40, 40]
+            md_bg_color: [0.08, 0.08, 0.1, 1]
+            elevation: 0
+            orientation: "vertical"
+            padding: "24dp"
 
-        MDLabel:
-            text: "Offline-Ready Dashboard & Native Service"
-            halign: "center"
-            font_style: "Caption"
-            theme_text_color: "Hint"
+            BoxLayout:
+                size_hint_y: 0.7
+                orientation: "vertical"
+                MDIcon:
+                    icon: "orbit"
+                    font_size: "64sp"
+                    halign: "center"
+                    theme_text_color: "Custom"
+                    text_color: [0, 0.8, 0.4, 1]
+                
+                MDLabel:
+                    text: "VISION ENGINE"
+                    halign: "center"
+                    font_style: "H5"
+                    bold: True
+                    theme_text_color: "Custom"
+                    text_color: [1, 1, 1, 1]
+                    letter_spacing: "4sp"
 
-        MDLabel:
-            id: status_label
-            text: "App started successfully. No network needed to load."
-            halign: "center"
-            theme_text_color: "Secondary"
-            font_style: "Body2"
+            MDLabel:
+                text: "v0.1.5 PRE-RELEASE"
+                halign: "center"
+                font_style: "Caption"
+                theme_text_color: "Secondary"
 
-        MDFillRoundFlatButton:
-            id: action_btn
-            text: "START NATIVE GUIDANCE"
-            font_size: "18sp"
-            size_hint: (1, 0.25)
-            on_release: app.safe_start_ai_service()
-            md_bg_color: app.theme_cls.primary_color
+        BoxLayout:
+            orientation: "vertical"
+            padding: "16dp"
+            spacing: "16dp"
 
-        MDLabel:
-            text: "Note: Preview shows design only.\\nInstall APK for screen observation."
-            halign: "center"
-            font_style: "Overline"
-            theme_text_color: "Error"
+            MDCard:
+                padding: "20dp"
+                radius: [24, ]
+                md_bg_color: [0.1, 0.1, 0.12, 1]
+                orientation: "vertical"
+                size_hint_y: None
+                height: "140dp"
+                
+                MDLabel:
+                    text: "SYSTEM STATUS"
+                    font_style: "Overline"
+                    theme_text_color: "Hint"
+                
+                MDLabel:
+                    id: status_label
+                    text: "READY TO INITIALIZE"
+                    bold: True
+                    font_style: "Subtitle1"
+                    theme_text_color: "Custom"
+                    text_color: [0.6, 0.6, 0.7, 1]
+                
+                Widget:
+                    size_hint_y: 0.2
+                
+                MDLabel:
+                    text: "AI analysis latency: 1200ms avg"
+                    font_style: "Caption"
+                    theme_text_color: "Secondary"
+
+            MDFillRoundFlatButton:
+                id: action_btn
+                text: "START GUIDANCE"
+                font_size: "18sp"
+                bold: True
+                size_hint: (1, None)
+                height: "72dp"
+                on_release: app.safe_start_ai_service()
+                md_bg_color: [0, 0.6, 0.4, 1]
+                radius: [18, ]
+
+            MDLabel:
+                text: "বিঃদ্রঃ: স্ক্রিন গাইডেন্স শুধুমাত্র ফোনে APK ইন্সটল করলেই কাজ করবে। প্রিভিউতে এটি কন্ট্রোল প্যানেল হিসেবে কাজ করে।"
+                halign: "center"
+                font_style: "Caption"
+                theme_text_color: "Hint"
+                size_hint_y: None
+                height: "60dp"
 '''
 
 class AIVisionApp(MDApp):

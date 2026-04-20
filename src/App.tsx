@@ -77,7 +77,26 @@ export default function App() {
                 START SERVICE
               </motion.button>
               
-              <p className="fixed bottom-10 text-zinc-700 text-[10px] uppercase font-bold tracking-widest">v0.1.0-alpha</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-12 w-full max-w-3xl">
+                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+                  <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-3 opacity-60">System Features</h4>
+                  <ul className="text-[11px] text-zinc-500 space-y-2">
+                    <li className="flex items-center gap-2">• Real-time Screen Analysis</li>
+                    <li className="flex items-center gap-2">• Bengali Voice Guidance (TTS)</li>
+                    <li className="flex items-center gap-2">• Draggable Control Bubble</li>
+                  </ul>
+                </div>
+                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+                  <h4 className="text-white text-[10px] font-black uppercase tracking-widest mb-3 opacity-60">Success Tips</h4>
+                  <ul className="text-[11px] text-zinc-500 space-y-2">
+                    <li className="flex items-center gap-2">• Enable "Overlay" Permission</li>
+                    <li className="flex items-center gap-2">• Disable Battery Optimization</li>
+                    <li className="flex items-center gap-2">• Use voice for complex tasks</li>
+                  </ul>
+                </div>
+              </div>
+
+              <p className="fixed bottom-10 text-zinc-700 text-[10px] uppercase font-bold tracking-widest">v0.1.5-stable</p>
             </motion.div>
         ) : (
             /* Active State (System Monitor Simulator) - Full Screen */
