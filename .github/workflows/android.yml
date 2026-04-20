@@ -80,10 +80,16 @@ jobs:
           # Add local bin to path
           export PATH=$PATH:$HOME/.local/bin
           
+          # Fix for buildozer looking for sdkmanager in the old tools/bin folder
+          mkdir -p /usr/local/lib/android/sdk/tools/bin
+          ln -s /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager || true
+          
+          # Pre-accept licenses and install required platforms and build-tools
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+          
           # Buildozer debug
-          # Let Buildozer automatically download and configure its own SDK/NDK
-          # We pipe "yes" to automatically accept all Android SDK licenses
-          yes | buildozer android debug
+          buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
           BUILDOZER_WARN_ON_ROOT: 0

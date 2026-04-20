@@ -36,10 +36,10 @@ android.api = 33
 android.minapi = 21
 
 # (str) Android SDK directory
-# android.sdk_path = 
+android.sdk_path = /usr/local/lib/android/sdk
 
 # (str) Android NDK directory 
-# android.ndk_path = 
+android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653
 
 # (str) Android NDK version to use
 android.ndk = 25b
