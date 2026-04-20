@@ -16,6 +16,24 @@ from kivy.utils import platform
 from kivymd.app import MDApp
 from kivymd.uix.button import MDFillRoundFlatButton
 from kivymd.uix.snackbar import Snackbar
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.boxlayout import BoxLayout
+import traceback
+
+def show_error_popup(error_msg):
+    # This creates a popup to show errors directly on the phone screen
+    content = BoxLayout(orientation='vertical', padding=10)
+    lbl = Label(text=f"App Error Output:\n\n{error_msg}", halign="center", valign="middle")
+    lbl.bind(size=lbl.setter('text_size'))
+    btn = Button(text="Close Application", size_hint=(1, 0.2))
+    content.add_widget(lbl)
+    content.add_widget(btn)
+    
+    popup = Popup(title='Critical Crash Detected', content=content, size_hint=(0.9, 0.8), auto_dismiss=False)
+    btn.bind(on_release=popup.dismiss)
+    popup.open()
 
 # Gemini SDK Integration
 import google.generativeai as genai
@@ -93,22 +111,53 @@ class AIVisionApp(MDApp):
             self.model = None
 
     def build(self):
-        # Configure Window to be transparent
-        Window.clearcolor = (0, 0, 0, 0)
-        return Builder.load_string(KV)
+        try:
+            # Configure Window to be transparent
+            Window.clearcolor = (0, 0, 0, 0)
+            return Builder.load_string(KV)
+        except Exception as e:
+            show_error_popup(f"Build Error: {str(e)}\n\n{traceback.format_exc()}")
+            return Label(text="Fatal Error: Check Popup")
 
     def on_start(self):
+        try:
+            if platform == 'android':
+                request_permissions([
+                    Permission.READ_EXTERNAL_STORAGE,
+                    Permission.WRITE_EXTERNAL_STORAGE,
+                    "android.permission.SYSTEM_ALERT_WINDOW",
+                    "android.permission.FOREGROUND_SERVICE"
+                ])
+        except Exception as e:
+            show_error_popup(f"Startup/Permission Error:\n{str(e)}")
+
+    def check_overlay_permission(self):
+        # Checks if we have permission to draw over other apps
         if platform == 'android':
-            request_permissions([
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE,
-                "android.permission.SYSTEM_ALERT_WINDOW",
-                "android.permission.FOREGROUND_SERVICE"
-            ])
+            Settings = autoclass('android.provider.Settings')
+            if not Settings.canDrawOverlays(currentActivity):
+                Snackbar(text="Please allow 'Display over other apps' to use overlay guidance").open()
+                Intent = autoclass('android.content.Intent')
+                Uri = autoclass('android.net.Uri')
+                intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                               Uri.parse("package:" + currentActivity.getPackageName()))
+                currentActivity.startActivity(intent)
+                return False
+        return True
+
+    def on_pause(self):
+        # CRITICAL: This keeps the app running when it goes to background
+        return True
+
+    def on_resume(self):
+        pass
 
     def start_ai_service(self):
         if not self.api_key:
             Snackbar(text="Error: API Key missing!").open()
+            return
+
+        if not self.check_overlay_permission():
             return
 
         self.is_active = True
@@ -156,13 +205,17 @@ class AIVisionApp(MDApp):
         if not self.model: return
 
         prompt = """
-        Analysis: You are a mobile guide assistant. Look at the screen.
-        Identify the NEXT logical touch point to help the user.
-        Return ONLY valid JSON:
+        Role: Android UI Assistant.
+        Task: Observe the screen screenshot and find the single most important action the user should take next.
+        Rules:
+        1. Identify the X and Y percentages (0-100) of the target element.
+        2. Provide a very short instruction in Bengali (e.g., "এই বাটনে ক্লিক করুন", "ব্যাকে যান", "সার্চ বারে লিখুন").
+        3. Output MUST be strictly JSON.
+        JSON Format:
         {
-            "x_p": float (0-100),
-            "y_p": float (0-100),
-            "tip": "short instructions in Bengali"
+            "x_p": float,
+            "y_p": float,
+            "tip": "Bengali Text"
         }
         """
         
@@ -187,4 +240,8 @@ class AIVisionApp(MDApp):
             Snackbar(text=f"AI গাইড: {tip}").open()
 
 if __name__ == '__main__':
-    AIVisionApp().run()
+    try:
+        AIVisionApp().run()
+    except Exception as e:
+        # Fallback for errors that happen before Kivy can even start
+        print(f"CRITICAL STARTUP ERROR:\n{traceback.format_exc()}")
