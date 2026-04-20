@@ -228,76 +228,39 @@ class AIVisionApp(MDApp):
                 def on_activity_result(request_code, result_code, intent):
                     if request_code == 1000:
                         if result_code == -1: # RESULT_OK
-                            NativeHelper.initProjection(mActivity, result_code, intent)
                             Snackbar(text="Screen Access Granted!").open()
                             
-                            # Now safe to start service and loops
+                            # Get correct display metrics natively
+                            ScreenMetrics = autoclass('android.util.DisplayMetrics')
+                            metrics = ScreenMetrics()
+                            mActivity.getWindowManager().getDefaultDisplay().getMetrics(metrics)
+                            w = metrics.widthPixels
+                            h = metrics.heightPixels
+                            dpi = metrics.densityDpi
+                            
+                            intent_uri = intent.toUri(0)
+                            args = f"{self.api_key}|||{w}|||{h}|||{dpi}|||{intent_uri}"
+                            
+                            # Start Background Service
                             service = autoclass('org.ai.tools.aivisionguide.ServiceAivision')
-                            service.start(mActivity, str(self.api_key))
+                            service.start(mActivity, args)
                             
                             move_app_to_background()
-                            threading.Thread(target=self.main_loop, daemon=True).start()
-                            Snackbar(text="AI Service running natively in background").open()
+                            Snackbar(text="Realtime Native Vision Active").open()
                         else:
-                            Snackbar(text="Permission Denied for Screen Observation").open()
+                            Snackbar(text="Permission Denied").open()
                             
                 activity.bind(on_activity_result=on_activity_result)
                 NativeHelper.requestCapture(mActivity, 1000)
             except Exception as e:
                 print(f"Foreground setup failed: {e}")
                 Snackbar(text=f"Setup failed: {e}").open()
-        else:
-            threading.Thread(target=self.main_loop, daemon=True).start()
 
     def trigger_analysis(self):
-        # Allow forcing of frame update
-        frame_path = os.path.join(self.user_data_dir, "frame.png")
-        if os.path.exists(frame_path):
-            os.remove(frame_path)
+        pass # Not used in native loop
 
     def main_loop(self):
-        result_path = os.path.join(self.user_data_dir, "result.json")
-        frame_path = os.path.join(self.user_data_dir, "frame.png")
-        
-        NativeHelper = None
-        if platform == 'android':
-            from jnius import autoclass
-            NativeHelper = autoclass('org.ai.tools.aivisionguide.NativeHelper')
-            mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
-            
-        while self.is_active:
-            # Drop a frame for background service to pick up
-            if not os.path.exists(frame_path) and not os.path.exists(result_path):
-                try:
-                    if platform == 'android' and NativeHelper:
-                        NativeHelper.captureFrame(frame_path)
-                    else:
-                        Window.screenshot(frame_path)
-                except Exception as e:
-                    print(f"Screenshot error: {e}")
-            
-            # Read IPC json payload
-            if os.path.exists(result_path):
-                time.sleep(0.5)
-                try:
-                    with open(result_path, 'r', encoding='utf-8') as f:
-                        raw_text = f.read()
-                    os.remove(result_path)
-                    
-                    data = json.loads(raw_text)
-                    if platform == 'android' and NativeHelper:
-                        # Draw natively over the OS (bypasses Kivy background constraints)
-                        NativeHelper.showGuidance(mActivity, data['x_p'], data['y_p'], data['tip'])
-                    else:
-                        w, h = Window.size
-                        x = (data['x_p'] / 100.0) * w
-                        y = ((100 - data['y_p']) / 100.0) * h
-                        Clock.schedule_once(lambda dt: self.display_guidance(x, y, data['tip']))
-                except Exception as e:
-                    if os.path.exists(result_path):
-                        os.remove(result_path)
-                        
-            time.sleep(1)
+        pass # Deprecated by Native Java Background Service
 
 
     def display_guidance(self, x, y, tip):

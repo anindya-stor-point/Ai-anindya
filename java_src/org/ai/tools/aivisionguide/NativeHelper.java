@@ -22,8 +22,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.Color;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import org.json.JSONObject;
+import org.json.JSONArray;
+import android.util.Base64;
 
 public class NativeHelper {
     public static MediaProjectionManager mpm;
@@ -39,6 +46,8 @@ public class NativeHelper {
     public static TextView tipText;
     public static View redBox;
 
+    public static boolean isLooping = false;
+
     public static void requestCapture(Activity activity, int requestCode) {
         if (mpm == null) {
             mpm = (MediaProjectionManager) activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
@@ -49,42 +58,122 @@ public class NativeHelper {
         }
     }
 
-    public static void initProjection(Activity activity, int resultCode, Intent data) {
-        DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
-        mScreenDensity = metrics.densityDpi;
-        mWidth = metrics.widthPixels;
-        mHeight = metrics.heightPixels;
+    public static void startContinuousAnalysis(Context context, String apiKey, Intent staticDataIntent, int screenWidth, int screenHeight, int densityDpi) {
+        if (isLooping) return;
+        isLooping = true;
+        
+        mWidth = screenWidth;
+        mHeight = screenHeight;
+        mScreenDensity = densityDpi;
 
-        mediaProjection = mpm.getMediaProjection(resultCode, data);
-        imageReader = ImageReader.newInstance(mWidth, mHeight, PixelFormat.RGBA_8888, 2);
-        virtualDisplay = mediaProjection.createVirtualDisplay("ScreenCapture",
-                mWidth, mHeight, mScreenDensity,
+        if (mpm == null) {
+            mpm = (MediaProjectionManager) context.getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        }
+
+        // -1 corresponds to Activity.RESULT_OK
+        mediaProjection = mpm.getMediaProjection(-1, staticDataIntent);
+        
+        // Scale down to 720p to make memory copy and HTTP transit extremely fast
+        int captureWidth = 720;
+        int captureHeight = (int)((720.0 / mWidth) * mHeight);
+        
+        imageReader = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2);
+        
+        virtualDisplay = mediaProjection.createVirtualDisplay("AIVisionGuide",
+                captureWidth, captureHeight, mScreenDensity,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                 imageReader.getSurface(), null, null);
+
+        Thread analysisThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (isLooping) {
+                    try {
+                        Thread.sleep(2000); // Poll every 2 seconds for real-time responsiveness without API flood
+                        
+                        Image image = imageReader.acquireLatestImage();
+                        if (image == null) continue;
+
+                        Image.Plane[] planes = image.getPlanes();
+                        ByteBuffer buffer = planes[0].getBuffer();
+                        int pixelStride = planes[0].getPixelStride();
+                        int rowStride = planes[0].getRowStride();
+                        int rowPadding = rowStride - pixelStride * captureWidth;
+
+                        Bitmap bitmap = Bitmap.createBitmap(captureWidth + rowPadding / pixelStride, captureHeight, Bitmap.Config.ARGB_8888);
+                        bitmap.copyPixelsFromBuffer(buffer);
+                        image.close();
+
+                        Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, captureWidth, captureHeight);
+                        
+                        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                        croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 60, bos);
+                        byte[] jpegData = bos.toByteArray();
+                        bitmap.recycle();
+                        croppedBitmap.recycle();
+
+                        String base64Image = Base64.encodeToString(jpegData, Base64.NO_WRAP);
+                        
+                        // Async Fast HTTP Post
+                        String result = analyzeWithGemini(apiKey, base64Image);
+                        if (result != null) {
+                            parseAndMakeOverlay(context, result);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        analysisThread.start();
     }
 
-    public static void captureFrame(String path) {
+    private static String analyzeWithGemini(String apiKey, String base64Image) {
         try {
-            if (imageReader == null) return;
-            Image image = imageReader.acquireLatestImage();
-            if (image == null) return;
+            URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(10000);
 
-            Image.Plane[] planes = image.getPlanes();
-            ByteBuffer buffer = planes[0].getBuffer();
-            int pixelStride = planes[0].getPixelStride();
-            int rowStride = planes[0].getRowStride();
-            int rowPadding = rowStride - pixelStride * mWidth;
+            String prompt = "Role: Android UI Expert & Visual Guide.\\nTask: Analyze the screenshot and provide one critical next step for the user.\\nRules:\\n1. Find X and Y as percentages (0-100).\\n2. Give a short, helpful guidance tip in BENGALI (max 5-7 words).\\n3. Be specific: \\\"নীল বাটনটিতে ক্লিক করুন\\\", \\\"ব্যাকে যান\\\", \\\"সার্চ বারে লিখুন\\\".\\nOutput MUST be strictly valid JSON:\\n{\\n    \\\"x_p\\\": float,\\n    \\\"y_p\\\": float,\\n    \\\"tip\\\": \\\"Short Bengali Instruction\\\"\\n}";
 
-            Bitmap bitmap = Bitmap.createBitmap(mWidth + rowPadding / pixelStride, mHeight, Bitmap.Config.ARGB_8888);
-            bitmap.copyPixelsFromBuffer(buffer);
-            image.close();
+            String jsonPayload = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"},{\"inline_data\":{\"mime_type\":\"image/jpeg\",\"data\":\"" + base64Image + "\"}}]}],\"generationConfig\":{\"response_mime_type\":\"application/json\"}}";
 
-            Bitmap croppedBitmap = Bitmap.createBitmap(bitmap, 0, 0, mWidth, mHeight);
-            FileOutputStream fos = new FileOutputStream(path);
-            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 60, fos);
-            fos.close();
-            bitmap.recycle();
-            croppedBitmap.recycle();
+            OutputStream os = conn.getOutputStream();
+            os.write(jsonPayload.getBytes("UTF-8"));
+            os.close();
+
+            if (conn.getResponseCode() == 200) {
+                InputStream is = conn.getInputStream();
+                java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+                String response = s.hasNext() ? s.next() : "";
+                is.close();
+                return response;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private static void parseAndMakeOverlay(Context context, String apiResponse) {
+        try {
+            JSONObject response = new JSONObject(apiResponse);
+            String rawText = response.getJSONArray("candidates").getJSONObject(0)
+                            .getJSONObject("content").getJSONArray("parts")
+                            .getJSONObject(0).getString("text");
+            
+            rawText = rawText.replace("```json", "").replace("```", "").trim();
+            JSONObject output = new JSONObject(rawText);
+            
+            float xp = (float) output.getDouble("x_p");
+            float yp = (float) output.getDouble("y_p");
+            String tip = output.getString("tip");
+            
+            showGuidance(context, xp, yp, tip);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -129,7 +218,7 @@ public class NativeHelper {
                         redBox = new View(context);
                         GradientDrawable border = new GradientDrawable();
                         border.setColor(Color.TRANSPARENT);
-                        border.setStroke(12, Color.RED);
+                        border.setStroke(14, Color.RED);
                         redBox.setBackground(border);
                         
                         FrameLayout.LayoutParams boxParams = new FrameLayout.LayoutParams(180, 180);
@@ -138,11 +227,8 @@ public class NativeHelper {
                         windowManager.addView(floatingView, params);
                     }
 
-                    int dw = context.getResources().getDisplayMetrics().widthPixels;
-                    int dh = context.getResources().getDisplayMetrics().heightPixels;
-
-                    int cx = (int) ((x_p / 100.0) * dw);
-                    int cy = (int) ((y_p / 100.0) * dh);
+                    int cx = (int) ((x_p / 100.0) * mWidth);
+                    int cy = (int) ((y_p / 100.0) * mHeight);
                     
                     FrameLayout.LayoutParams boxParams = (FrameLayout.LayoutParams) redBox.getLayoutParams();
                     boxParams.leftMargin = cx - 90; 
@@ -159,7 +245,7 @@ public class NativeHelper {
                                 floatingView.setVisibility(View.GONE);
                             }
                         }
-                    }, 4000);
+                    }, 2800);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
