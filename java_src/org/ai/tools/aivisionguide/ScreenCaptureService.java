@@ -48,7 +48,7 @@ public class ScreenCaptureService extends Service {
         // We already have the intent safely stored in NativeHelper from Kivy activity
         NativeHelper.startContinuousAnalysis(this, apiKey, NativeHelper.staticDataIntent, w, h, dpi);
 
-        return START_NOT_STICKY;
+        return START_STICKY;
     }
 
     private void createNotificationChannel() {
@@ -56,7 +56,7 @@ public class ScreenCaptureService extends Service {
             NotificationChannel serviceChannel = new NotificationChannel(
                     CHANNEL_ID,
                     "AI Vision Background Service",
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_HIGH
             );
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {

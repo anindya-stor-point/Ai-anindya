@@ -115,6 +115,48 @@ class AIVisionApp(MDApp):
             print("API Key loaded, AI Service Ready.")
         else:
             self.model_active = False
+        
+        # Bind activity results once
+        if platform == 'android':
+            from android import activity
+            activity.bind(on_activity_result=self.on_activity_result)
+
+    def on_activity_result(self, request_code, result_code, intent):
+        if request_code == 1000:
+            if result_code == -1: # RESULT_OK
+                from jnius import autoclass
+                mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
+                NativeHelper = autoclass('org.ai.tools.aivisionguide.NativeHelper')
+                
+                # Get metrics
+                ScreenMetrics = autoclass('android.util.DisplayMetrics')
+                metrics = ScreenMetrics()
+                mActivity.getWindowManager().getDefaultDisplay().getMetrics(metrics)
+                
+                # Store intent
+                NativeHelper.staticDataIntent = intent
+                
+                # Start Service
+                Intent = autoclass('android.content.Intent')
+                ServiceClass = autoclass('org.ai.tools.aivisionguide.ScreenCaptureService')
+                service_intent = Intent(mActivity, ServiceClass)
+                service_intent.putExtra("API_KEY", self.api_key)
+                service_intent.putExtra("WIDTH", metrics.widthPixels)
+                service_intent.putExtra("HEIGHT", metrics.heightPixels)
+                service_intent.putExtra("DPI", metrics.densityDpi)
+                
+                mActivity.startForegroundService(service_intent)
+                move_app_to_background()
+                Snackbar(text="Background Service Active!").open()
+            else:
+                Snackbar(text="Screen Permission Required").open()
+                self.reset_ui()
+
+    def reset_ui(self):
+        self.root.ids.action_btn.opacity = 1.0
+        self.root.ids.action_btn.disabled = False
+        self.root.ids.action_btn.text = "START GUIDANCE"
+        self.is_active = False
 
     def build(self):
         try:
@@ -171,83 +213,54 @@ class AIVisionApp(MDApp):
             return
             
         if platform == 'android':
+            from jnius import autoclass
             from android.permissions import request_permissions, Permission
+            
+            mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
+            PowerManager = autoclass('android.os.PowerManager')
+            pm = mActivity.getSystemService(autoclass('android.content.Context').POWER_SERVICE)
+            
+            # Request battery optimization exemption for background stability
+            if not pm.isIgnoringBatteryOptimizations(mActivity.getPackageName()):
+                Snackbar(text="Background stability: Disable battery optimization").open()
+                Intent = autoclass('android.content.Intent')
+                Settings = autoclass('android.provider.Settings')
+                Uri = autoclass('android.net.Uri')
+                intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.setData(Uri.parse("package:" + mActivity.getPackageName()))
+                mActivity.startActivity(intent)
+
+            def on_permissions_result(permissions, grants):
+                pass 
+
             request_permissions([
                 Permission.READ_EXTERNAL_STORAGE,
                 Permission.WRITE_EXTERNAL_STORAGE,
                 Permission.RECORD_AUDIO,
+                "android.permission.POST_NOTIFICATIONS",
                 "android.permission.SYSTEM_ALERT_WINDOW",
                 "android.permission.FOREGROUND_SERVICE"
-            ])
+            ], callback=on_permissions_result)
 
         if not self.check_overlay_permission():
             return
 
         self.is_active = True
-        # Update UI state
         self.root.ids.status_label.text = "Background AI Active"
         self.root.ids.status_label.text_color = (0, 0.8, 0, 1)
         self.root.ids.action_btn.opacity = 0.5
         self.root.ids.action_btn.disabled = True
         self.root.ids.action_btn.text = "SERVICE RUNNING"
         
-        # Move app to background so user sees their phone screen
         if platform == 'android':
             try:
-                # Start the Background Foreground Service using Kivy's generated Java class
                 from jnius import autoclass
-                from android import activity
-                
                 NativeHelper = autoclass('org.ai.tools.aivisionguide.NativeHelper')
                 mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
-                
-                def on_activity_result(request_code, result_code, intent):
-                    if request_code == 1000:
-                        if result_code == -1: # RESULT_OK
-                            Snackbar(text="Screen Access Granted!").open()
-                            
-                            # Get correct display metrics natively
-                            ScreenMetrics = autoclass('android.util.DisplayMetrics')
-                            metrics = ScreenMetrics()
-                            mActivity.getWindowManager().getDefaultDisplay().getMetrics(metrics)
-                            w = metrics.widthPixels
-                            h = metrics.heightPixels
-                            dpi = metrics.densityDpi
-                            
-                            # Store the EXACT intent in memory so Mediaprojection token is not lost 
-                            NativeHelper.staticDataIntent = intent
-                            
-                            # Start Native Background Service directly
-                            Intent = autoclass('android.content.Intent')
-                            ServiceClass = autoclass('org.ai.tools.aivisionguide.ScreenCaptureService')
-                            Context = autoclass('android.content.Context')
-                            
-                            service_intent = Intent(mActivity, ServiceClass)
-                            service_intent.putExtra("API_KEY", self.api_key)
-                            service_intent.putExtra("WIDTH", w)
-                            service_intent.putExtra("HEIGHT", h)
-                            service_intent.putExtra("DPI", dpi)
-                            
-                            # Android 8.0+ requires startForegroundService
-                            mActivity.startForegroundService(service_intent)
-                            
-                            move_app_to_background()
-                            Snackbar(text="Realtime Native Vision Active").open()
-                            
-                            # Resets the button if they come back
-                            self.root.ids.action_btn.opacity = 1.0
-                            self.root.ids.action_btn.disabled = False
-                            self.root.ids.action_btn.text = "START GUIDANCE"
-                        else:
-                            Snackbar(text="Permission Denied").open()
-                            self.root.ids.action_btn.opacity = 1.0
-                            self.root.ids.action_btn.disabled = False
-                            self.root.ids.action_btn.text = "START GUIDANCE"
-                            
-                activity.bind(on_activity_result=on_activity_result)
                 NativeHelper.requestCapture(mActivity, 1000)
             except Exception as e:
                 print(f"Foreground setup failed: {e}")
+                self.reset_ui()
                 Snackbar(text=f"Setup failed: {e}").open()
 
     def trigger_analysis(self):

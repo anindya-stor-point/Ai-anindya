@@ -53,8 +53,11 @@ public class NativeHelper {
     public static LinearLayout floatingBubble;  // Menu Bubble (Mic + Stop)
     public static TextView tipText;
     public static View redBox;
+    public static View scanLine;
+    public static TextView statusBadge;
 
     public static volatile boolean isLooping = false;
+    public static volatile boolean isProcessing = false;
     
     // Voice Command Variables
     public static SpeechRecognizer speechRecognizer;
@@ -149,7 +152,14 @@ public class NativeHelper {
                     }
 
                     // Async Fast HTTP Post
+                    isProcessing = true;
+                    updateHUDStatus(true);
+                    
                     String result = analyzeWithGemini(context, apiKey, base64Image, queryToProcess);
+                    
+                    isProcessing = false;
+                    updateHUDStatus(false);
+                    
                     if (result != null && isLooping) {
                         parseAndMakeOverlay(context, result);
                     }
@@ -262,6 +272,18 @@ public class NativeHelper {
         }
     }
 
+    private static void updateHUDStatus(boolean active) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (statusBadge != null) {
+                statusBadge.setText(active ? "AI OBSERVING..." : "AI IDLE");
+                statusBadge.setTextColor(active ? Color.parseColor("#00FF00") : Color.parseColor("#88FFFFFF"));
+                if (scanLine != null) {
+                    scanLine.setVisibility(active ? View.VISIBLE : View.GONE);
+                }
+            }
+        });
+    }
+
     private static void showFloatingBubble(Context context) {
         new Handler(Looper.getMainLooper()).post(() -> {
             try {
@@ -282,7 +304,18 @@ public class NativeHelper {
 
                 floatingBubble = new LinearLayout(context);
                 floatingBubble.setOrientation(LinearLayout.VERTICAL); // Stack vertically
-                floatingBubble.setPadding(10, 10, 10, 10);
+                floatingBubble.setPadding(15, 15, 15, 15);
+                
+                // Status Badge
+                statusBadge = new TextView(context);
+                statusBadge.setText("AI IDLE");
+                statusBadge.setTextSize(9);
+                statusBadge.setGravity(Gravity.CENTER);
+                statusBadge.setTextColor(Color.parseColor("#88FFFFFF"));
+                statusBadge.setBackgroundColor(Color.parseColor("#AA000000"));
+                statusBadge.setPadding(10, 5, 10, 5);
+                
+                floatingBubble.addView(statusBadge, new LinearLayout.LayoutParams(-1, -2));
 
                 // MIC BUTTON
                 FrameLayout micLayout = new FrameLayout(context);
@@ -355,15 +388,15 @@ public class NativeHelper {
             conn.setConnectTimeout(8000);
             conn.setReadTimeout(12000);
 
-            String prompt = "Role: Android UI Expert & Visual Guide.\\n";
+            String prompt = "Role: Advanced Android OS Vision AI. You are helping a user navigate their phone screen in real-time.\\n";
             if (!userQuery.isEmpty()) {
-                prompt += "User's Voice Command: \\\"" + userQuery + "\\\".\\nPriority Task: Read the screen and guide the user on exactly where to click to fulfill this command.\\n";
+                prompt += "User Voice Intent: \\\"" + userQuery + "\\\". Focus all attention on fulfilling this specific request.\\n";
             } else {
-                prompt += "Task: Analyze the screenshot and dynamically predict the one next logical step for the user.\\n";
+                prompt += "Task: Contextual proactive guidance. Observe the current UI and propose the single most logical next action to help the user.\\n";
             }
-            prompt += "Rules:\\n1. Find X and Y as exact percentages (0-100) of the target element.\\n2. Give a short, helpful guidance tip EXCLUSIVELY in Bengali script (max 5-8 words).\\n3. Output MUST be strictly valid JSON:\\n{\\n    \\\"x_p\\\": float,\\n    \\\"y_p\\\": float,\\n    \\\"tip\\\": \\\"Bengali Instruction\\\"\\n}";
+            prompt += "Rules:\\n1. Precise Coordinates: Output X and Y as percentages (0-100) of the center of the UI element to interact with.\\n2. Advanced Bengali Support: Instruction must be short, helpful, and written in natural Bengali script.\\n3. No Yapping: Output ONLY raw JSON based on this schema:\\n{\\n  \\\"x_p\\\": float (0.0-100.0),\\n  \\\"y_p\\\": float (0.0-100.0),\\n  \\\"tip\\\": \\\"Bengali Instruction String\\\"\\n}";
 
-            String jsonPayload = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"},{\"inline_data\":{\"mime_type\":\"image/jpeg\",\"data\":\"" + base64Image + "\"}}]}],\"generationConfig\":{\"response_mime_type\":\"application/json\"}}";
+            String jsonPayload = "{\"contents\":[{\"parts\":[{\"text\":\"" + prompt + "\"},{\"inline_data\":{\"mime_type\":\"image/jpeg\",\"data\":\"" + base64Image + "\"}}]}],\"generationConfig\":{\"response_mime_type\":\"application/json\", \"temperature\": 0.1}}";
 
             OutputStream os = conn.getOutputStream();
             os.write(jsonPayload.getBytes("UTF-8"));
@@ -434,50 +467,71 @@ public class NativeHelper {
                     );
                     params.gravity = Gravity.TOP | Gravity.LEFT;
 
+                    scanLine = new View(context);
+                    scanLine.setBackgroundColor(Color.parseColor("#4400FF00"));
+                    scanLine.setVisibility(View.GONE);
+                    floatingView.addView(scanLine, new FrameLayout.LayoutParams(-1, 10));
+
                     tipText = new TextView(context);
                     tipText.setTextColor(Color.WHITE);
-                    tipText.setBackgroundColor(Color.argb(230, 20, 20, 20));
-                    tipText.setTextSize(22);
-                    tipText.setPadding(50, 50, 50, 50);
+                    tipText.setBackground(createRoundedBg(Color.argb(230, 10, 10, 10), 40));
+                    tipText.setTextSize(20);
+                    tipText.setGravity(Gravity.CENTER);
+                    tipText.setPadding(60, 40, 60, 40);
                     FrameLayout.LayoutParams textParams = new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
                     );
                     textParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-                    textParams.bottomMargin = 200;
+                    textParams.bottomMargin = 240;
                     floatingView.addView(tipText, textParams);
 
                     redBox = new View(context);
                     GradientDrawable border = new GradientDrawable();
-                    border.setColor(Color.TRANSPARENT);
-                    border.setStroke(14, Color.RED);
+                    border.setColor(Color.argb(30, 255, 0, 0));
+                    border.setStroke(12, Color.RED);
+                    border.setCornerRadius(30);
                     redBox.setBackground(border);
                     
-                    FrameLayout.LayoutParams boxParams = new FrameLayout.LayoutParams(200, 200);
+                    FrameLayout.LayoutParams boxParams = new FrameLayout.LayoutParams(220, 220);
                     floatingView.addView(redBox, boxParams);
 
                     windowManager.addView(floatingView, params);
                 }
 
+                // Update Coordinates
                 int cx = (int) ((x_p / 100.0) * mWidth);
                 int cy = (int) ((y_p / 100.0) * mHeight);
                 
                 FrameLayout.LayoutParams boxParams = (FrameLayout.LayoutParams) redBox.getLayoutParams();
-                boxParams.leftMargin = cx - 100; 
-                boxParams.topMargin = cy - 100;
+                boxParams.leftMargin = cx - 110; 
+                boxParams.topMargin = cy - 110;
                 redBox.setLayoutParams(boxParams);
+
+                // Pulsing Animation for the Box
+                redBox.setScaleX(0.8f); redBox.setScaleY(0.8f);
+                redBox.animate().scaleX(1.1f).scaleY(1.1f).setDuration(500).withEndAction(() -> {
+                    redBox.animate().scaleX(1.0f).scaleY(1.0f).setDuration(500).start();
+                }).start();
 
                 tipText.setText(tip);
                 floatingView.setVisibility(View.VISIBLE);
                 
-                // Hide automatically after 2.8 seconds
+                // Hide automatically after 3.5 seconds to give user time to read
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     if (floatingView != null) {
                         floatingView.setVisibility(View.GONE);
                     }
-                }, 2800);
+                }, 3500);
             } catch (Exception e) {
                 showDetailedError(context, "Overlay Rendering Error: " + e.getMessage());
             }
         });
+    }
+
+    private static GradientDrawable createRoundedBg(int color, float radius) {
+        GradientDrawable gd = new GradientDrawable();
+        gd.setColor(color);
+        gd.setCornerRadius(radius);
+        return gd;
     }
 }
