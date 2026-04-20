@@ -73,22 +73,17 @@ jobs:
 
       - name: Build with Buildozer
         run: |
-          # Purge system Android variables to prevent version conflicts
-          unset ANDROID_SDK_ROOT
-          unset ANDROID_HOME
-          unset ANDROID_NDK_HOME
-          unset ANDROID_NDK_ROOT
-          
-          # Force Java 17 PATH and JAVA_HOME
-          export PATH=$JAVA_HOME_17_X64/bin:$PATH
+          # Use system Java 17
           export JAVA_HOME=$JAVA_HOME_17_X64
+          export PATH=$JAVA_HOME/bin:$PATH
           
-          # Verify Java version
+          # Verify Environment
           java -version
           
           export PATH=$PATH:$HOME/.local/bin
           # Buildozer debug
-          # License accepted via buildozer.spec and 'yes' fallback
+          # We no longer unset Android variables to allow using pre-installed Runner SDK if available
+          # but we force Buildozer to accept licenses
           yes | buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
