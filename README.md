@@ -1,39 +1,25 @@
-# AI Vision Guide - Android Project 🚀
+# AI Vision Guide - Professional Android App Implementation 🚀
 
-This is a professional Android application project designed for "Live Screen Observation and User Guidance" using the power of **Gemini 1.5 Flash**.
+AI Vision Guide একটি পেশাদার অ্যান্ড্রয়েড অ্যাপ্লিকেশন যা **Gemini 1.5 Flash** ব্যবহার করে লাইভ স্ক্রিন পর্যবেক্ষণ এবং ইউজারকে ধাপে ধাপে নির্দেশনা প্রদান করে।
 
-## Features 🌟
-- **Live Screen Capture**: Uses Android MediaProjection API.
-- **AI Guidance**: Analyzes screenshots in real-time to suggest the next user action.
-- **Accessibility Integration**: Designed to work as an overlay on top of other apps.
-- **Dynamic Overlays**: Renders guidance markers (arrows/boxes) directly on the UI coordinate system.
+## প্রধান বৈশিষ্ট্যসমূহ (Features) 🌟
+- **অতি সাধারণ ইন্টারফেস**: অ্যাপ ওপেন করলেই শুধু একটি 'START SERVICE' বাটন থাকবে।
+- **লাইভ স্ক্রিন অবজারভেশন**: MediaProjection API (সিমুলেটেড) ব্যবহার করে লাইভ ফ্রেম রিড করে।
+- **এআই বিশ্লেষণ**: স্ক্রিন বিশ্লেষণ করে ইউজারকে পরবর্তী পদক্ষেপ গ্রহণে সাহায্য করে।
+- **লাল বর্গক্ষেত্র ওভারলে**: এআই যদি কোনো নির্দিষ্ট জায়গা চিহ্নিত করে, সেখানে একটি লাল স্কয়ার বক্স দেখাবে।
+- **ইন্টারঅ্যাক্টিভ গাইডেন্স**: লাল বক্সে ক্লিক করলে অ্যাপটি তৎক্ষণাৎ পরবর্তী পদক্ষেপের জন্য স্ক্রিন বিশ্লেষণ শুরু করবে।
 
-## Project Structure 📁
-- `main.py`: Core logic using Kivy/KivyMD.
-- `buildozer.spec`: Configuration for Android APK packaging.
-- `requirements.txt`: Python dependencies (Kivy, MD, Gemini SDK, etc.).
-- `.github/workflows/android.yml`: CI workflow for automated builds.
+## প্রজেক্টের গঠন (Project Structure) 📁
+- `main.py`: Kivy/KivyMD ব্যবহার করে তৈরি কোর লজিক।
+- `buildozer.spec`: অ্যান্ড্রয়েড APK প্যাকেজিং কনফিগারেশন।
+- `.github/workflows/android.yml`: GitHub Actions এর মাধ্যমে অটোমেটেড বিল্ড সেটআপ।
 
-## How to Build 🛠️
+## কিভাবে বিল্ড করবেন (How to Build) 🛠️
 
-1. **Local Setup**:
-   Clone this repository to your local Linux machine or use Google Colab.
-   
-2. **Configure API Key**:
-   Ensure your `GEMINI_API_KEY` is set in your environment variables.
-
-3. **Run Buildozer**:
-   ```bash
-   buildozer -v android debug
-   ```
-   *Note: Ensure you have the necessary Android SDK/NDK dependencies installed.*
-
-4. **Install APK**:
-   Find the resulting APK in the `bin/` folder and install it on your Android device.
-
-## License 📄
-Apache-2.0
+১. **Github এ পুশ করুন**: আপনার রিপোজিটরিতে কোড পুশ করলে স্বয়ংক্রিয়ভাবে বিল্ড শুরু হবে।
+২. **API Key সেট করুন**: এনভায়রনমেন্টে `GEMINI_API_KEY` নিশ্চিত করুন।
+৩. **APK ফাইল**: Github Actions এর Artifacts থেকে `AI-Vision-Guide-APK` ডাউনলোড করে অ্যান্ড্রয়েড ফোনে ইন্সটল করুন।
 
 ---
-*Last Sync Prepared by AI Engine on: 2026-04-19 08:37 PM*
-*Status: CI Hardened - Purged system Android environment leaks and forced JDK 17 verification. Fixed Buildozer Java 11 fallback.*
+*Last Sync Prepared by AI Engine on: 2026-04-19 09:00 PM*
+*Status: Feature Revamp - Minimal UI, Red Square Overlay, and Interactive Guidance implemented.*
