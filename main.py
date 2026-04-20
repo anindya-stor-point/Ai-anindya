@@ -95,39 +95,6 @@ MDScreen:
             theme_text_color: "Hint"
 '''
 
-class InteractionBox(FloatLayout):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.size_val = 150
-        self.app_ref = App.get_running_app()
-        self.active_coord = None
-        
-    def show_box(self, x, y):
-        self.active_coord = (x, y)
-        self.canvas.clear()
-        with self.canvas:
-            # Thick Red Outline
-            Color(0.9, 0, 0, 1)
-            Line(rectangle=(x - self.size_val/2, y - self.size_val/2, self.size_val, self.size_val), width=8)
-            # Semi-transparent red fill
-            Color(0.9, 0, 0, 0.1)
-            Rectangle(pos=(x - self.size_val/2, y - self.size_val/2), size=(self.size_val, self.size_val))
-            
-    def on_touch_down(self, touch):
-        # Check if user clicked inside the guidance box
-        if self.active_coord:
-            cx, cy = self.active_coord
-            if abs(touch.x - cx) < self.size_val and abs(touch.y - cy) < self.size_val:
-                self.hide_box()
-                # Trigger immediate new analysis cycle
-                self.app_ref.trigger_analysis()
-                return True
-        return super().on_touch_down(touch)
-
-    def hide_box(self):
-        self.active_coord = None
-        self.canvas.clear()
-
 class AIVisionApp(MDApp):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -145,11 +112,10 @@ class AIVisionApp(MDApp):
 
     def build(self):
         try:
-            self.theme_cls.primary_palette = "DeepPurple"
+            self.theme_cls.primary_palette = "Blue"
             self.theme_cls.theme_style = "Dark"
-            # Configure Window to be transparent
-            # Black with 0 alpha (transparent)
-            Window.clearcolor = (0, 0, 0, 0)
+            # Solid standard background to prevent completely blank transparent loading
+            Window.clearcolor = (0.05, 0.05, 0.15, 1)
             return Builder.load_string(KV)
         except Exception as e:
             traceback_msg = traceback.format_exc()
@@ -157,17 +123,7 @@ class AIVisionApp(MDApp):
             return Label(text="Fatal Error Initializing UI")
 
     def on_start(self):
-        try:
-            if platform == 'android':
-                request_permissions([
-                    Permission.READ_EXTERNAL_STORAGE,
-                    Permission.WRITE_EXTERNAL_STORAGE,
-                    "android.permission.SYSTEM_ALERT_WINDOW",
-                    "android.permission.FOREGROUND_SERVICE"
-                ])
-        except Exception as e:
-            traceback_msg = traceback.format_exc()
-            Clock.schedule_once(lambda dt: show_error_popup(f"Startup/Permission Error:\n{str(e)}\n\n{traceback_msg}"))
+        pass # Moving permission request to button click so it doesn't freeze the startup dashboard
 
     def check_overlay_permission(self):
         # Checks if we have permission to draw over other apps
@@ -198,6 +154,16 @@ class AIVisionApp(MDApp):
         if not self.api_key:
             Snackbar(text="Error: API Key missing!").open()
             return
+            
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE,
+                Permission.RECORD_AUDIO,
+                "android.permission.SYSTEM_ALERT_WINDOW",
+                "android.permission.FOREGROUND_SERVICE"
+            ])
 
         if not self.check_overlay_permission():
             return
@@ -210,11 +176,6 @@ class AIVisionApp(MDApp):
         self.root.ids.action_btn.disabled = True
         self.root.ids.action_btn.text = "SERVICE RUNNING"
         
-        # Add the interaction overlay
-        if not self.guidance_box:
-            self.guidance_box = InteractionBox()
-            Window.add_widget(self.guidance_box)
-            
         # Move app to background so user sees their phone screen
         if platform == 'android':
             try:
@@ -247,8 +208,16 @@ class AIVisionApp(MDApp):
                             
                             move_app_to_background()
                             Snackbar(text="Realtime Native Vision Active").open()
+                            
+                            # Resets the button if they come back
+                            self.root.ids.action_btn.opacity = 1.0
+                            self.root.ids.action_btn.disabled = False
+                            self.root.ids.action_btn.text = "START GUIDANCE"
                         else:
                             Snackbar(text="Permission Denied").open()
+                            self.root.ids.action_btn.opacity = 1.0
+                            self.root.ids.action_btn.disabled = False
+                            self.root.ids.action_btn.text = "START GUIDANCE"
                             
                 activity.bind(on_activity_result=on_activity_result)
                 NativeHelper.requestCapture(mActivity, 1000)
