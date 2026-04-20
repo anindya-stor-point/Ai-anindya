@@ -77,22 +77,11 @@ jobs:
           export JAVA_HOME=$JAVA_HOME_17_X64
           export PATH=$JAVA_HOME/bin:$PATH
           
-          # Configure Android Environment
-          export ANDROID_HOME=$ANDROID_SDK_ROOT
-          
-          # Path to sdkmanager
-          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
-          
-          # Increase timeout and stability for sdkmanager
-          # Using API 33 as it's the standard for modern Buildozer/Runner
-          echo "y" | $SDKMANAGER --sdk_root=$ANDROID_HOME "platforms;android-33" "build-tools;33.0.2"
-          
           # Add local bin to path
           export PATH=$PATH:$HOME/.local/bin
           
           # Buildozer debug
-          # Let Buildozer handle the SDK/NDK paths automatically if possible,
-          # but we've pre-seeded the API 33 platform above.
+          # Let Buildozer automatically download and configure its own SDK/NDK
           buildozer android debug
         env:
           BUILDOZER_ALLOW_ORG_ROOT_OVERRIDE: 1
